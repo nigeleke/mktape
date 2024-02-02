@@ -14,8 +14,8 @@ jobs:
     steps:
       - name: Prep
         run: |
-          | sudo apt update
-          | sudo apt install curl
+          sudo apt update
+          sudo apt install curl
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -28,18 +28,18 @@ jobs:
 
       - name: Test
         run: |
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f0.gz
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f1.gz
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f2.gz
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f3.gz
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f4.gz
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f5.gz
-          | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f6.gz
-          | tar -zxcf f0.gz -C data
-          | tar -zxcf f1.gz -C data
-          | tar -zxcf f2.gz -C data
-          | tar -zxcf f3.gz -C data
-          | tar -zxcf f4.gz -C data
-          | tar -zxcf f5.gz -C data
-          | tar -zxcf f6.gz -C data
-          | cargo test --verbose -- --show-output --test-threads=1
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f0.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f1.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f2.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f3.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f4.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f5.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f6.gz
+          tar -zxcf f0.gz -C data
+          tar -zxcf f1.gz -C data
+          tar -zxcf f2.gz -C data
+          tar -zxcf f3.gz -C data
+          tar -zxcf f4.gz -C data
+          tar -zxcf f5.gz -C data
+          tar -zxcf f6.gz -C data
+          cargo test --verbose -- --show-output --test-threads=1
