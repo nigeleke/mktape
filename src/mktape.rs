@@ -20,18 +20,18 @@ pub fn mktape(args: &[String]) -> Result<()> {
         let chunks = content.chunks(block_size);
         let chunks_len = chunks.len();
         for chunk in chunks {
-            tap_file.write(&packed_len)?;
-            tap_file.write(chunk)?;
+            tap_file.write_all(&packed_len)?;
+            tap_file.write_all(chunk)?;
             let padding = [0x00; 1].repeat(block_size - chunk.len());
-            tap_file.write(&padding)?;
-            tap_file.write(&packed_len)?;
+            tap_file.write_all(&padding)?;
+            tap_file.write_all(&packed_len)?;
         }
-        tap_file.write(&EOF)?;
+        tap_file.write_all(&EOF)?;
         println!("{}: {} bytes = {} records (blocksize {} bytes)",
             spec.path().display(), chunks_len * block_size, chunks_len, block_size);
     }
 
-    tap_file.write(&EOT)?;
+    tap_file.write_all(&EOT)?;
     
     Ok(())
 }
