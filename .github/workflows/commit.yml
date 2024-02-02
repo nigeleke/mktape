@@ -37,4 +37,5 @@ jobs:
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f5.gz
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f6.gz
           gunzip f*.gz
+          cd ..
           cargo test --verbose -- --show-output --test-threads=1
