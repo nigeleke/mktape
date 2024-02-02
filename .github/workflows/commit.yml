@@ -22,4 +22,4 @@ jobs:
         run: cargo clippy
 
       - name: Test
-        run: cargo test --verbose -- --show-output
+        run: cargo test --verbose -- --show-output --test-threads=1
