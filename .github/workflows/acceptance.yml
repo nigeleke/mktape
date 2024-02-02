@@ -39,7 +39,7 @@ jobs:
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f6.gz
           gunzip f*.gz
           cargo install cargo-tarpaulin
-          cargo tarpaulin --out xml
+          cargo tarpaulin --out xml -- --test-threads=1
 
       - name: Publish to Codecov
         uses: codecov/codecov-action@v3
