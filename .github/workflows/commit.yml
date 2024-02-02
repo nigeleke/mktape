@@ -28,6 +28,7 @@ jobs:
 
       - name: Test
         run: |
+          cd data
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f0.gz
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f1.gz
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f2.gz
@@ -35,11 +36,5 @@ jobs:
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f4.gz
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f5.gz
           curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f6.gz
-          tar -zxvf f0.gz -C data
-          tar -zxvf f1.gz -C data
-          tar -zxvf f2.gz -C data
-          tar -zxvf f3.gz -C data
-          tar -zxvf f4.gz -C data
-          tar -zxvf f5.gz -C data
-          tar -zxvf f6.gz -C data
+          gunzip f*.gz
           cargo test --verbose -- --show-output --test-threads=1
