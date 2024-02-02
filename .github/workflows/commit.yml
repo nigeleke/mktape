@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Prep
+        run: |
+          | sudo apt update
+          | sudo apt install curl
+
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -22,7 +27,6 @@ jobs:
         run: cargo clippy
 
       - name: Test
-        uses: sozo-design/curl@v1.0.2
         run: |
           | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f0.gz
           | curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f1.gz
