@@ -4,6 +4,9 @@ use crate::result::Result;
 use std::fs::File;
 use std::io::Write;
 
+/// `mktape` provides the core functionality.
+/// See main for `args` description. 
+///
 pub fn mktape(args: &[String]) -> Result<()> {
     let args = ValidatedArgs::from(args)?;
 
