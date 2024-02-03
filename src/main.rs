@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     match mktape(&args) {
         Ok(_) => { Ok(()) },
         Err(e) => {
-            println!("Error: {:?}{}", e, USAGE);
+            println!("{}", USAGE);
             Err(e)
         }
     }
