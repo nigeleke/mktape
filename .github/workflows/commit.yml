@@ -1,0 +1,41 @@
+# Quick feedback for unit tests on non-main commits.
+#
+name: Commit Cycle
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prep
+        run: |
+          sudo apt update
+          sudo apt install curl
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Compile
+        run: cargo build --verbose
+
+      - name: Lint
+        run: cargo clippy
+
+      - name: Test
+        run: |
+          cd data
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f0.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f1.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f2.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f3.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f4.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f5.gz
+          curl -LO https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/f6.gz
+          gunzip f*.gz
+          cd ..
+          cargo test --verbose -- --show-output --test-threads=1
