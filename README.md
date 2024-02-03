@@ -37,20 +37,20 @@ If you use [nix](https://nixos.org/) you can set up a development environment us
 > nix develop
 ```
 
-Other wise you need to have [rust](https://www.rust-lang.org/) installed, after which:
+Otherwise you need to have [rust](https://www.rust-lang.org/) installed, after which:
 
 ```
 > cargo build
+```
+
+Unit tests:
+```
+> cargo test --lib -- --test-threads=1
+```
+
+Integration tests require test files to be downloaded and stored in the `data/` folder. See the `README.md` in that folder.
+```
 > cargo test -- --test-threads=1
-```
-
-Unit tests (`args` and `mktape`) can be executed independently.
-
-Integration tests require test files to be downloaded and stored in the `data/` folder. See the `README.md` in that folder. If you don't download these files then the following test scripts will suffice:
-
-```
-> cargo test args -- --test-threads=1
-> cargo test mktape
 ```
 
 Note: 
