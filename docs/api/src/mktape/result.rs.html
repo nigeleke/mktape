@@ -26,6 +26,7 @@
 <a href="#26" id="26">26</a>
 <a href="#27" id="27">27</a>
 <a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
 </pre></div><pre class="rust"><code><span class="attr">#[derive(Debug, PartialEq)]
 </span><span class="kw">pub enum </span>Error {
     InvalidArgsCount,
@@ -41,7 +42,8 @@
     }
 }
 
-<span class="kw">impl </span>From&lt;std::env::VarError&gt; <span class="kw">for </span>Error {
+<span class="attr">#[cfg(test)]
+</span><span class="kw">impl </span>From&lt;std::env::VarError&gt; <span class="kw">for </span>Error {
     <span class="kw">fn </span>from(error: std::env::VarError) -&gt; <span class="self">Self </span>{
         Error::EnvVar(error.to_string())
     }
