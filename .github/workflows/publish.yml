@@ -41,7 +41,7 @@ jobs:
           cd ..
           cargo doc --no-deps
           cargo install cargo-tarpaulin
-          cargo tarpaulin --out html --output-dir target/coverage
+          cargo tarpaulin --out html --output-dir target/coverage -- --test-threads=1
           mkdir docs0
           mkdir -p docs0/api
           mkdir -p docs0/coverage
