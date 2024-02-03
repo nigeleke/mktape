@@ -13,6 +13,7 @@ impl From<std::io::Error> for Error {
     }
 }
 
+#[cfg(test)]
 impl From<std::env::VarError> for Error {
     fn from(error: std::env::VarError) -> Self {
         Error::EnvVar(error.to_string())
