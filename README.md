@@ -57,6 +57,13 @@ Note:
 
   1. `--test-threads=1` is required as one of the test sets an environment variable whose presence my impact the other tests.
 
+## Publish
+
+```
+> cargo build -r --bin mktape
+> sudo cp target/release/mktape /usr/local/bin/
+```
+
 ## Usage
 
 ```
