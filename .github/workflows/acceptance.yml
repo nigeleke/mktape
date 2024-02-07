@@ -40,7 +40,7 @@ jobs:
           gunzip f*.gz
           cd ..
           cargo install cargo-tarpaulin
-          cargo tarpaulin --out xml -- --test-threads=1
+          cargo tarpaulin --out xml --exclude-files=src/main.rs -- --test-threads=1
 
       - name: Publish to Codecov
         uses: codecov/codecov-action@v3
