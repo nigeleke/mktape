@@ -23,7 +23,7 @@ jobs:
           sudo apt install curl
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -51,7 +51,7 @@ jobs:
           cargo tarpaulin --out xml --exclude-files=src/main.rs -- --test-threads=1
 
       - name: Publish to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
 
       - name: Publish
         run: |
