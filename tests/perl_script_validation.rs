@@ -12,7 +12,7 @@ fn tap_file_created_with_valid_input() {
         .display()
         .to_string();
 
-    let args = format!("mktape -c {} {}/f0:512 {}/f1:512 {}/f2:512 {}/f3:512 {}/f4:512 {}/f5:10240 {}/f6:10240",
+    let args = format!("mktape {} create {}/f0:512 {}/f1:512 {}/f2:512 {}/f3:512 {}/f4:512 {}/f5:10240 {}/f6:10240",
         tap_filename,
         data_dir, data_dir, data_dir, data_dir, data_dir, data_dir, data_dir);
     let args = Vec::from_iter(args.split(' ').map(String::from));

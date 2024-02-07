@@ -7,7 +7,5 @@ edition = "2021"
 openssl = "0.10.63"
 
 [dependencies]
-cargo = "0.76.0"
 clap = { version = "4", features = ["derive"] }
-features = "0.10.0"
-regex = "1.10.3"
+regex = "1.10"

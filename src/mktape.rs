@@ -1,4 +1,4 @@
-use crate::args::{Args, Command, InputFile};
+use crate::args::{Args, Command, InputFile, TapeFile};
 use crate::result::{Error, Result};
 
 use std::fs::File;
@@ -9,7 +9,7 @@ use std::io::Write;
 ///
 pub fn mktape(args: &Args) -> Result<()> {
     match &args.command {
-        Command::Create { .. } => create(args),
+        Command::Create { inputs } => create(&args.tape, &inputs),
         Command::List => list(args),
         Command::Extract { ..  } => extract(args),
     }
@@ -19,14 +19,12 @@ fn list(_args: &Args) -> Result<()> {
     Err(Error::NotImplemented)
 }
 
-fn create(args: &Args) -> Result<()> {
+fn create(tape: &TapeFile, inputs: &Vec<InputFile>) -> Result<()> {
     const EOF: [u8; 4] = [0x00; 4];
     const EOT: [u8; 4] = [0xff; 4];
 
-    let tape_path = &args.tape.path;
+    let tape_path = &tape.path;
     let mut tap_file = File::create(tape_path)?;
-
-    let inputs: Vec<InputFile> = Vec::new(); // TODO: Add back - &args.inputs;
 
     for input in inputs {
         let block_size = input.block_size;
@@ -34,6 +32,7 @@ fn create(args: &Args) -> Result<()> {
 
         let path = &input.path;
         let path_name = path.display();
+        println!("Opening {:?}", path_name);
 
         let content = std::fs::read(path)?;
         let chunks = content.chunks(block_size);
@@ -79,7 +78,7 @@ mod tests {
         let args = Args::try_from(&args).expect("Expected successful parse");
         assert!(match mktape(&args) {
             Err(Error::Io(_)) => true,
-            other => panic!("error_when_cant_open_input_file::unexpected error: {:?}", other),
+            other => panic!("error_when_cant_open_input_file::unexpected: {:?}", other),
         });
         // Housekeeping...
         std::fs::remove_file("outfile.tap").expect("error_when_cant_open_input_file: should be able to delete output file after test");
