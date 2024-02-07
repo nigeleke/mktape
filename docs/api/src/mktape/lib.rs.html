@@ -11,19 +11,17 @@
 <a href="#11" id="11">11</a>
 <a href="#12" id="12">12</a>
 <a href="#13" id="13">13</a>
-<a href="#14" id="14">14</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! `mktape` stems from the need to create a PDP-10 `tap` file to load source of another [project](https://nigeleke.github.io/monop) of mine, onto an emulated PDP-10.
-//! As part of the research into making this work I was pointed to [this paper](https://opensimh.org/research-unix-7-pdp11-45-v2.0.pdf) and, in particular, the [perl script](https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/mktape.pl) referenced in Appendix A.
-//! The [perl script](https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/mktape.pl) creates a pre-named `tap` file (`v7.tap`) from files `f0`..`f6`. More over, the input files have pre-defined block sizes for each of them.
-//!
-//! This project generalises the script so that the user can:
-//! 
-//!   * specify the output file (required)
-//!   * specify the input file(s), minimally one file
-//!   * specify the input file&#39;s block-sizes (defaults to 1024 to align with the `tapewrite` default from the [tapeutils](https://github.com/brouhaha/tapeutils) repository).
-//!
-
-</span><span class="kw">mod </span>args;
-<span class="kw">pub mod </span>mktape;
+</pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>args;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>mktape;
 <span class="kw">pub mod </span>result;
+
+<span class="kw">use </span><span class="kw">crate</span>::args::Args;
+<span class="kw">use </span><span class="kw">crate</span>::result::Result;
+
+<span class="kw">pub fn </span>mktape(args: Vec&lt;String&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">let </span>args = Args::from(args);
+    <span class="macro">println!</span>(<span class="string">&quot;args: {:?}&quot;</span>, args);
+
+    mktape::mktape(<span class="kw-2">&amp;</span>args)
+}
 </code></pre></div></section></main></body></html>

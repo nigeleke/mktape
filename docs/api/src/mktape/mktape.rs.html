@@ -66,8 +66,26 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::args::ValidatedArgs;
-<span class="kw">use </span><span class="kw">crate</span>::result::Result;
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::args::{Args, Command, InputFile, TapeFile};
+<span class="kw">use </span><span class="kw">crate</span>::result::{Error, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>std::fs::File;
 <span class="kw">use </span>std::io::Write;
@@ -75,19 +93,34 @@
 <span class="doccomment">/// `mktape` provides the core functionality.
 /// See main for `args` description. 
 ///
-</span><span class="kw">pub fn </span>mktape(args: <span class="kw-2">&amp;</span>[String]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>args = ValidatedArgs::from(args)<span class="question-mark">?</span>;
+</span><span class="kw">pub fn </span>mktape(args: <span class="kw-2">&amp;</span>Args) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">match </span><span class="kw-2">&amp;</span>args.command {
+        Command::Create { inputs } =&gt; create(<span class="kw-2">&amp;</span>args.tape, <span class="kw-2">&amp;</span>inputs),
+        Command::List =&gt; list(args),
+        Command::Extract { ..  } =&gt; extract(args),
+    }
+}
 
+<span class="kw">fn </span>list(_args: <span class="kw-2">&amp;</span>Args) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="prelude-val">Err</span>(Error::NotImplemented)
+}
+
+<span class="kw">fn </span>create(tape: <span class="kw-2">&amp;</span>TapeFile, inputs: <span class="kw-2">&amp;</span>Vec&lt;InputFile&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">const </span>EOF: [u8; <span class="number">4</span>] = [<span class="number">0x00</span>; <span class="number">4</span>];
     <span class="kw">const </span>EOT: [u8; <span class="number">4</span>] = [<span class="number">0xff</span>; <span class="number">4</span>];
 
-    <span class="kw">let </span><span class="kw-2">mut </span>tap_file = File::create(args.tap_path())<span class="question-mark">?</span>;
+    <span class="kw">let </span>tape_path = <span class="kw-2">&amp;</span>tape.path;
+    <span class="kw">let </span><span class="kw-2">mut </span>tap_file = File::create(tape_path)<span class="question-mark">?</span>;
 
-    <span class="kw">for </span>spec <span class="kw">in </span>args.input_specs() {
-        <span class="kw">let </span>block_size = spec.block_size();
+    <span class="kw">for </span>input <span class="kw">in </span>inputs {
+        <span class="kw">let </span>block_size = input.block_size;
         <span class="kw">let </span>packed_len = (block_size <span class="kw">as </span>u32).to_le_bytes();
 
-        <span class="kw">let </span>content = std::fs::read(spec.path())<span class="question-mark">?</span>;
+        <span class="kw">let </span>path = <span class="kw-2">&amp;</span>input.path;
+        <span class="kw">let </span>path_name = path.display();
+        <span class="macro">println!</span>(<span class="string">&quot;Opening {:?}&quot;</span>, path_name);
+
+        <span class="kw">let </span>content = std::fs::read(path)<span class="question-mark">?</span>;
         <span class="kw">let </span>chunks = content.chunks(block_size);
         <span class="kw">let </span>chunks_len = chunks.len();
         <span class="kw">for </span>chunk <span class="kw">in </span>chunks {
@@ -98,13 +131,16 @@
             tap_file.write_all(<span class="kw-2">&amp;</span>packed_len)<span class="question-mark">?</span>;
         }
         tap_file.write_all(<span class="kw-2">&amp;</span>EOF)<span class="question-mark">?</span>;
+
         <span class="macro">println!</span>(<span class="string">&quot;{}: {} bytes = {} records (blocksize {} bytes)&quot;</span>,
-            spec.path().display(), chunks_len * block_size, chunks_len, block_size);
+            path_name, chunks_len * block_size, chunks_len, block_size);
     }
 
-    tap_file.write_all(<span class="kw-2">&amp;</span>EOT)<span class="question-mark">?</span>;
-    
-    <span class="prelude-val">Ok</span>(())
+    <span class="prelude-val">Ok</span>(tap_file.write_all(<span class="kw-2">&amp;</span>EOT)<span class="question-mark">?</span>)
+}
+
+<span class="kw">fn </span>extract(_args: <span class="kw-2">&amp;</span>Args) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="prelude-val">Err</span>(Error::NotImplemented)
 }
 
 <span class="attr">#[cfg(test)]
@@ -114,8 +150,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>error_when_cant_open_tap_file() {
-        <span class="kw">let </span>args = <span class="string">&quot;./pathdoesntexist/outfile.tap infile1.txt&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
+        <span class="kw">let </span>args = <span class="string">&quot;mktape ./pathdoesntexist/outfile.tap create infile1.txt&quot;</span>;
+        <span class="kw">let </span>args = Args::try_from(<span class="kw-2">&amp;</span>args).expect(<span class="string">&quot;Expected successful parse&quot;</span>);
         <span class="macro">assert!</span>(<span class="kw">match </span>mktape(<span class="kw-2">&amp;</span>args) {
             <span class="prelude-val">Err</span>(Error::Io(<span class="kw">_</span>)) =&gt; <span class="bool-val">true</span>,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
@@ -124,11 +160,11 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>error_when_cant_open_input_file() { 
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap infile1.txt&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
+        <span class="kw">let </span>args = <span class="string">&quot;mktape outfile.tap create infile1.txt&quot;</span>;
+        <span class="kw">let </span>args = Args::try_from(<span class="kw-2">&amp;</span>args).expect(<span class="string">&quot;Expected successful parse&quot;</span>);
         <span class="macro">assert!</span>(<span class="kw">match </span>mktape(<span class="kw-2">&amp;</span>args) {
             <span class="prelude-val">Err</span>(Error::Io(<span class="kw">_</span>)) =&gt; <span class="bool-val">true</span>,
-            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            other =&gt; <span class="macro">panic!</span>(<span class="string">&quot;error_when_cant_open_input_file::unexpected: {:?}&quot;</span>, other),
         });
         <span class="comment">// Housekeeping...
         </span>std::fs::remove_file(<span class="string">&quot;outfile.tap&quot;</span>).expect(<span class="string">&quot;error_when_cant_open_input_file: should be able to delete output file after test&quot;</span>);

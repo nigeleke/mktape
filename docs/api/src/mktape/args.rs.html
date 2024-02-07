@@ -169,190 +169,174 @@
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::result::{Error, <span class="prelude-ty">Result</span>};
-
+</pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args <span class="kw">as </span>ClapArgs, Parser, Subcommand, ValueEnum};
+<span class="attr">#[cfg(test)]
+</span><span class="kw">use </span>clap::error::Error <span class="kw">as </span>ClapError;
 <span class="kw">use </span>regex::Regex;
 
-<span class="kw">use </span>std::iter::Iterator;
+<span class="kw">use </span>std::num::ParseIntError;
 <span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">type </span>BlockSize = usize;
 
-<span class="attr">#[derive(Debug, PartialEq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>InputFileSpec {
-    path: PathBuf,
-    block_size: BlockSize,
+<span class="attr">#[derive(Debug, Parser, PartialEq)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Args {
+    <span class="doccomment">/// The tape file to be used. [-f &lt;FORMAT&gt;] &lt;FILE&gt;, where &lt;FORMAT&gt; is `tap` or `backup`.
+    </span><span class="attr">#[command(flatten)]
+    </span><span class="kw">pub </span>tape: TapeFile,
+
+    <span class="attr">#[command(subcommand)]
+    </span><span class="kw">pub </span>command: Command,
+
 }
 
-<span class="kw">impl </span>InputFileSpec {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>path(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>PathBuf { <span class="kw-2">&amp;</span><span class="self">self</span>.path }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>block_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BlockSize { <span class="self">self</span>.block_size }
-}
-
-<span class="attr">#[derive(Debug, PartialEq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ValidatedArgs {
-    tap_path: PathBuf,
-    input_specs: Vec&lt;InputFileSpec&gt;,
-}
-
-<span class="kw">fn </span>string_to_pathbuf(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;PathBuf&gt; {
-    <span class="prelude-val">Ok</span>(PathBuf::new().join(s))
-}
-
-<span class="kw">const </span>MKTAPE_BLOCK_LENGTH_ENVVAR: <span class="kw-2">&amp;</span>str = <span class="string">&quot;MKTAPE_BLOCK_LENGTH&quot;</span>;
-<span class="kw">const </span>MKTAPE_BLOCK_LENGTH_DEFAULT: BlockSize = <span class="number">1024</span>;
-
-<span class="kw">fn </span>string_to_input_spec(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;InputFileSpec&gt; {
-    <span class="kw">let </span>default_block_len = std::env::var(MKTAPE_BLOCK_LENGTH_ENVVAR)
-        .map_or(<span class="prelude-val">Ok</span>(MKTAPE_BLOCK_LENGTH_DEFAULT), |v| v.parse::&lt;BlockSize&gt;())<span class="question-mark">?</span>;
-
-    <span class="kw">fn </span>reversed(input: <span class="kw-2">&amp;</span>str) -&gt; String {
-        <span class="kw">let </span>reversed_chars: Vec&lt;char&gt; = input.chars().rev().collect();
-        <span class="kw">let </span>reversed_string: String = reversed_chars.into_iter().collect();
-        reversed_string
+<span class="kw">impl </span>Args {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from(args: Vec&lt;String&gt;) -&gt; <span class="self">Self </span>{
+        Args::parse_from(args)
     }
 
-    <span class="kw">fn </span>reversed_as_block_size(input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;BlockSize&gt; {
-        <span class="kw">let </span>input = reversed(input);
-        <span class="kw">let </span>block_size = input.parse::&lt;BlockSize&gt;()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(block_size)
+    <span class="attr">#[cfg(test)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_from(args: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ClapError&gt; {
+        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
+        Args::try_parse_from(<span class="kw-2">&amp;</span>args)
     }
-
-    <span class="kw">let </span>s = reversed(s);
-    <span class="kw">let </span>regex = Regex::new(<span class="string">&quot;^(([^:]+):)?(.+)$&quot;</span>).unwrap();
-    <span class="kw">let </span>captures = regex.captures(<span class="kw-2">&amp;</span>s).ok_or(Error::InvalidInputSpec)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>path = captures.get(<span class="number">3</span>).map(|m| reversed(m.as_str())).unwrap();
-    <span class="kw">let </span>path = string_to_pathbuf(<span class="kw-2">&amp;</span>path)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>block_size = <span class="kw">match </span>captures.get(<span class="number">2</span>).map(|m| reversed_as_block_size(m.as_str())) {
-        <span class="prelude-val">Some</span>(result) =&gt; { result<span class="question-mark">? </span>},
-        <span class="prelude-val">None </span>=&gt; { default_block_len },
-    };
-
-    <span class="prelude-val">Ok</span>(InputFileSpec { path, block_size, })
 }
 
-<span class="kw">impl </span>ValidatedArgs {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from(args: <span class="kw-2">&amp;</span>[String]) -&gt; <span class="prelude-ty">Result</span>&lt;ValidatedArgs&gt; {
-        <span class="kw">if </span>args.len() &lt;= <span class="number">1 </span>{ <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidArgsCount) };
-        <span class="kw">let </span>tap_path = string_to_pathbuf(<span class="kw-2">&amp;</span>args[<span class="number">0</span>])<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="prelude-val">Some</span>(extension) = tap_path.extension() <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidTapeFilename)            
-        };
-        <span class="kw">if </span>!extension.eq(<span class="string">&quot;tap&quot;</span>) { <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidTapeFilename) }
-        <span class="kw">let </span>input_specs = args[<span class="number">1</span>..].iter()
-            .map(|s| string_to_input_spec(s))
-            .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;InputFileSpec&gt;&gt;&gt;()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(ValidatedArgs { tap_path, input_specs })
-    }
+<span class="attr">#[derive(ClapArgs, Clone, Debug, PartialEq)]
+</span><span class="doccomment">/// The tape file to be used.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>TapeFile {
+    <span class="doccomment">/// Tape file format
+    </span><span class="attr">#[arg(short, long, value_enum, default_value_t = TapeFormat::Tap)]
+    </span><span class="kw">pub </span>format: TapeFormat,
+    
+    <span class="doccomment">/// The `tap` or `backup` file to be processed
+    </span><span class="attr">#[arg(value_name = <span class="string">&quot;TAPE&quot;</span>)]
+    </span><span class="kw">pub </span>path: PathBuf,
+}
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tap_path(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>PathBuf { <span class="kw-2">&amp;</span><span class="self">self</span>.tap_path }
+<span class="attr">#[derive(Clone, Debug, PartialEq, ValueEnum)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TapeFormat {
+    Tap,
+    Backup,
+}
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>input_specs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>InputFileSpec&gt; {
-        <span class="self">self</span>.input_specs.iter()
+<span class="attr">#[derive(Clone, Debug, PartialEq, Subcommand)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Command {
+    <span class="doccomment">/// Create a tape image from a set of input files.
+    </span>Create { 
+        <span class="doccomment">/// The input files to be added: &lt;FILE&gt;[:&lt;BLOCKSIZE&gt;]
+        </span>inputs: Vec&lt;InputFile&gt;,
+    },
+    <span class="doccomment">/// List the contents of an existing tape image.
+    </span>List,
+    <span class="doccomment">/// Extract the contents of an existing tape image.
+    </span>Extract {
+        <span class="doccomment">/// Target folder for the extracted files.
+        </span>target: PathBuf,
+    },
+}
+
+<span class="attr">#[derive(ClapArgs, Clone, Debug, PartialEq)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>InputFile {
+    <span class="kw">pub </span>path: PathBuf,
+    <span class="kw">pub </span>block_size: BlockSize,
+}
+
+<span class="kw">const </span>MKTAPE_BLOCK_SIZE_ENVVAR: <span class="kw-2">&amp;</span>str = <span class="string">&quot;MKTAPE_BLOCK_SIZE&quot;</span>;
+<span class="kw">const </span>MKTAPE_BLOCK_SIZE_DEFAULT: BlockSize = <span class="number">1024</span>;
+
+<span class="kw">impl </span>FromStr <span class="kw">for </span>InputFile {
+    <span class="kw">type </span><span class="prelude-val">Err </span>= ParseIntError;
+    <span class="kw">fn </span>from_str(item: <span class="kw-2">&amp;</span>str) -&gt; std::result::Result&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
+        <span class="kw">let </span>default_block_size = std::env::var(MKTAPE_BLOCK_SIZE_ENVVAR)
+            .map_or(<span class="prelude-val">Ok</span>(MKTAPE_BLOCK_SIZE_DEFAULT),
+                    |v| v.parse::&lt;BlockSize&gt;())<span class="question-mark">?</span>;
+
+        <span class="kw">fn </span>reversed(input: <span class="kw-2">&amp;</span>str) -&gt; String {
+            <span class="kw">let </span>reversed_chars: Vec&lt;char&gt; = input.chars().rev().collect();
+            <span class="kw">let </span>reversed_string: String = reversed_chars.into_iter().collect();
+            reversed_string
+        }
+
+        <span class="kw">let </span>item = reversed(item);
+        <span class="kw">let </span>regex = Regex::new(<span class="string">&quot;^(([^:]+):)?(.+)$&quot;</span>).unwrap();
+        <span class="kw">let </span>captures = regex.captures(<span class="kw-2">&amp;</span>item).expect(<span class="string">&quot;mktape::args::Program Error in FromStr for InputFile&quot;</span>);
+
+        <span class="kw">let </span>path = captures.get(<span class="number">3</span>).map(|m| reversed(m.as_str())).unwrap().into();
+        <span class="kw">let </span>block_size = captures.get(<span class="number">2</span>).map(|m| reversed(m.as_str()).parse()).transpose()<span class="question-mark">?</span>;
+        <span class="kw">let </span>block_size = block_size.unwrap_or(default_block_size);
+
+        <span class="prelude-val">Ok</span>(InputFile { path, block_size, })
     }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>clap::error::ErrorKind;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>error_with_zero_args() {
-        <span class="kw">let </span>args = Vec::new();
-        <span class="macro">assert_eq!</span>(ValidatedArgs::from(<span class="kw-2">&amp;</span>args), <span class="prelude-val">Err</span>(Error::InvalidArgsCount))
+        <span class="kw">let </span>args = <span class="string">&quot;mktape&quot;</span>;
+        <span class="kw">let </span>result = Args::try_from(<span class="kw-2">&amp;</span>args).map_err(|e| e.kind());
+        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Err</span>(ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand))
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>error_with_one_arg() {
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="macro">assert_eq!</span>(ValidatedArgs::from(<span class="kw-2">&amp;</span>args), <span class="prelude-val">Err</span>(Error::InvalidArgsCount))
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>error_when_tap_file_not_explicit() {
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.err infile1.txt&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="macro">assert_eq!</span>(ValidatedArgs::from(<span class="kw-2">&amp;</span>args), <span class="prelude-val">Err</span>(Error::InvalidTapeFilename))
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>default_block_size_in_spec() {
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap infile1.txt&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="kw">let </span>expected = ValidatedArgs {
-            tap_path: PathBuf::new().join(<span class="string">&quot;outfile.tap&quot;</span>),
-            input_specs: <span class="macro">vec!</span>[
-                InputFileSpec {
-                    path: PathBuf::new().join(<span class="string">&quot;infile1.txt&quot;</span>),
-                    block_size: <span class="number">1024
-                </span>}
-            ],
+    </span><span class="kw">fn </span>use_default_block_size() {
+        <span class="kw">let </span>args = <span class="string">&quot;mktape outfile.tap create infile1.txt&quot;</span>;
+        <span class="kw">let </span>result = Args::try_from(<span class="kw-2">&amp;</span>args).expect(<span class="string">&quot;Expected successful parse&quot;</span>);
+        <span class="macro">assert_eq!</span>(result.tape.path, PathBuf::new().join(<span class="string">&quot;outfile.tap&quot;</span>));
+        <span class="kw">let </span>inputs = <span class="kw">match </span>result.command {
+            Command::Create { inputs } =&gt; inputs,
+            other =&gt; <span class="macro">panic!</span>(<span class="string">&quot;use_default_block_size::Unexpected command {:?}&quot;</span>, other),
         };
-        <span class="macro">assert_eq!</span>(ValidatedArgs::from(<span class="kw-2">&amp;</span>args), <span class="prelude-val">Ok</span>(expected))
+        <span class="macro">assert_eq!</span>(inputs[<span class="number">0</span>].path, PathBuf::new().join(<span class="string">&quot;infile1.txt&quot;</span>));
+        <span class="macro">assert_eq!</span>(inputs[<span class="number">0</span>].block_size, <span class="number">1024</span>);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>environment_variable_block_size_in_spec() {
-        std::env::set_var(MKTAPE_BLOCK_LENGTH_ENVVAR, <span class="string">&quot;2048&quot;</span>);
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap infile1.txt&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="kw">let </span>expected = ValidatedArgs {
-            tap_path: PathBuf::new().join(<span class="string">&quot;outfile.tap&quot;</span>),
-            input_specs: <span class="macro">vec!</span>[
-                InputFileSpec {
-                    path: PathBuf::new().join(<span class="string">&quot;infile1.txt&quot;</span>),
-                    block_size: <span class="number">2048
-                </span>}
-            ],
+    </span><span class="kw">fn </span>use_environment_variable_block_size() {
+        std::env::set_var(MKTAPE_BLOCK_SIZE_ENVVAR, <span class="string">&quot;2048&quot;</span>);
+        <span class="kw">let </span>args = <span class="string">&quot;mktape outfile.tap create infile1.txt&quot;</span>;
+        <span class="kw">let </span>result = Args::try_from(<span class="kw-2">&amp;</span>args).expect(<span class="string">&quot;Expected successful parse&quot;</span>);
+        <span class="macro">assert_eq!</span>(result.tape.path, PathBuf::new().join(<span class="string">&quot;outfile.tap&quot;</span>));
+        <span class="kw">let </span>inputs = <span class="kw">match </span>result.command {
+            Command::Create { inputs } =&gt; inputs,
+            other =&gt; <span class="macro">panic!</span>(<span class="string">&quot;use_default_block_size::Unexpected command {:?}&quot;</span>, other),
         };
-        <span class="kw">let </span>actual = ValidatedArgs::from(<span class="kw-2">&amp;</span>args);
-        std::env::remove_var(MKTAPE_BLOCK_LENGTH_ENVVAR);
-        <span class="macro">assert_eq!</span>(actual, <span class="prelude-val">Ok</span>(expected))
+        <span class="macro">assert_eq!</span>(inputs[<span class="number">0</span>].path, PathBuf::new().join(<span class="string">&quot;infile1.txt&quot;</span>));
+        <span class="macro">assert_eq!</span>(inputs[<span class="number">0</span>].block_size, <span class="number">2048</span>);
+        std::env::remove_var(MKTAPE_BLOCK_SIZE_ENVVAR);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>invalid_environment_variable_block_size_in_spec() {
-        std::env::set_var(MKTAPE_BLOCK_LENGTH_ENVVAR, <span class="string">&quot;abcd&quot;</span>);
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap infile1.txt&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="kw">let </span>actual = ValidatedArgs::from(<span class="kw-2">&amp;</span>args);
-        std::env::remove_var(MKTAPE_BLOCK_LENGTH_ENVVAR);
-        <span class="macro">assert_eq!</span>(actual, <span class="prelude-val">Err</span>(Error::InvalidInputSpec))
+    </span><span class="kw">fn </span>fail_on_invalid_environment_variable_block_size() {
+        std::env::set_var(MKTAPE_BLOCK_SIZE_ENVVAR, <span class="string">&quot;abcd&quot;</span>);
+        <span class="kw">let </span>args = <span class="string">&quot;mktape outfile.tap create infile1.txt&quot;</span>;
+        <span class="kw">let </span>result = Args::try_from(<span class="kw-2">&amp;</span>args).map_err(|e| e.kind());
+        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Err</span>(ErrorKind::ValueValidation));
+        std::env::remove_var(MKTAPE_BLOCK_SIZE_ENVVAR);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>extracted_block_size_in_spec() {
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap infile1.txt:4096&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="kw">let </span>expected = ValidatedArgs {
-            tap_path: PathBuf::new().join(<span class="string">&quot;outfile.tap&quot;</span>),
-            input_specs: <span class="macro">vec!</span>[
-                InputFileSpec {
-                    path: PathBuf::new().join(<span class="string">&quot;infile1.txt&quot;</span>),
-                    block_size: <span class="number">4096
-                </span>}
-            ],
+    </span><span class="kw">fn </span>use_input_block_size() {
+        <span class="kw">let </span>args = <span class="string">&quot;mktape outfile.tap create infile1.txt:4096&quot;</span>;
+        <span class="kw">let </span>result = Args::try_from(<span class="kw-2">&amp;</span>args).expect(<span class="string">&quot;Expected successful parse&quot;</span>);
+        <span class="macro">assert_eq!</span>(result.tape.path, PathBuf::new().join(<span class="string">&quot;outfile.tap&quot;</span>));
+        <span class="kw">let </span>inputs = <span class="kw">match </span>result.command {
+            Command::Create { inputs } =&gt; inputs,
+            other =&gt; <span class="macro">panic!</span>(<span class="string">&quot;use_default_block_size::Unexpected command {:?}&quot;</span>, other),
         };
-        <span class="macro">assert_eq!</span>(ValidatedArgs::from(<span class="kw-2">&amp;</span>args), <span class="prelude-val">Ok</span>(expected))
+        <span class="macro">assert_eq!</span>(inputs[<span class="number">0</span>].path, PathBuf::new().join(<span class="string">&quot;infile1.txt&quot;</span>));
+        <span class="macro">assert_eq!</span>(inputs[<span class="number">0</span>].block_size, <span class="number">4096</span>);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>invalid_extracted_block_size_in_spec() {
-        <span class="kw">let </span>args = <span class="string">&quot;outfile.tap infile1.txt:abcd&quot;</span>;
-        <span class="kw">let </span>args = Vec::from_iter(args.split(<span class="string">&#39; &#39;</span>).map(String::from));
-        <span class="macro">assert_eq!</span>(ValidatedArgs::from(<span class="kw-2">&amp;</span>args), <span class="prelude-val">Err</span>(Error::InvalidInputSpec))
+    </span><span class="kw">fn </span>fail_on_invalid_input_block_size() {
+        <span class="kw">let </span>args = <span class="string">&quot;mktape outfile.tap create infile1.txt:abcd&quot;</span>;
+        <span class="kw">let </span>result = Args::try_from(<span class="kw-2">&amp;</span>args).map_err(|e| e.kind());
+        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Err</span>(ErrorKind::ValueValidation));
     }
-
-
 }</code></pre></div></section></main></body></html>

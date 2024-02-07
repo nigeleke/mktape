@@ -28,16 +28,23 @@ This project generalises the script so that the user can:
   * specify the output file (required)
   * specify the input file(s), minimally one file
   * specify the input file's block-sizes (defaults to 1024 to align with the `tapewrite` default from the [tapeutils](https://github.com/brouhaha/tapeutils) repository).
+
+## TODO:
+
+  * Amend to create `backup` format files.
+  * Amend to list contents of `tap` and `backup` files. 
+  * Possibly amend to extract contents of `tap` and `backup` files. 
  
+## Development pre-requisites
+
+Normally I would use [nix](https://nixos.org/) to set up the development environment, but I found in this case, [rust](https://www.rust-lang.org/) didn't play well with some symlinks used by nix, so [rust](https://www.rust-lang.org/) is required.
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install cargo-tarpaulin
+```
+
 ## Build & develop
-
-If you use [nix](https://nixos.org/) you can set up a development environment using:
-
-```
-> nix develop
-```
-
-Otherwise you need to have [rust](https://www.rust-lang.org/) installed, after which:
 
 ```
 > cargo build
@@ -66,13 +73,15 @@ Note:
 
 ## Usage
 
+Run `mktape --help` for additional help. In summary:
+
 ```
-mktape <tapeFilename.tap> <inputFilename:block_size>...
+> mktape <TAPE> list
+> mktape <TAPE> create <INPUT>[:<BLOCKSIZE]>...
 ```
 
-Notes:
+where:
 
-  1. `tapeFilename` must have `.tap` extension.
-  2. If `tapeFilename.tap` already exists it will be overwritten.
-  3. `inputFileSpec` is `inputFilename:optBlockLength`
-  4. Default `blockLength` is defined by the `MKTAPE_BLOCK_LENGTH` environment variable, or 1024 if `MKTAPE_BLOCK_LENGTH` is undefined.
+  * `<TAPE>` is `[-f <FORMAT>] <PATH>`
+  * `<FORMAT>` is `tap` or `backup`, and defaults to `tap`
+  * Default `<BLOCKSIZE>` is 1024 if not provided; The environment variable `MKTAPE_BLOCK_SIZE` can be set to change the default.

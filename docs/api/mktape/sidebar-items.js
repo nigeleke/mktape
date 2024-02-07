@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["mktape","result"]};
+window.SIDEBAR_ITEMS = {"fn":["mktape"],"mod":["result"]};
