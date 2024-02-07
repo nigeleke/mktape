@@ -1,4 +1,4 @@
-use mktape::mktape;
+use mktape::*;
 
 use std::path::Path;
 
@@ -12,12 +12,12 @@ fn tap_file_created_with_valid_input() {
         .display()
         .to_string();
 
-    let args = format!("{} {}/f0:512 {}/f1:512 {}/f2:512 {}/f3:512 {}/f4:512 {}/f5:10240 {}/f6:10240",
+    let args = format!("mktape -c {} {}/f0:512 {}/f1:512 {}/f2:512 {}/f3:512 {}/f4:512 {}/f5:10240 {}/f6:10240",
         tap_filename,
         data_dir, data_dir, data_dir, data_dir, data_dir, data_dir, data_dir);
     let args = Vec::from_iter(args.split(' ').map(String::from));
 
-    assert_eq!(mktape::mktape(&args), Ok(()));
+    assert_eq!(mktape(args), Ok(()));
 
     let tap_path = Path::new(&tap_filename);
     assert!(tap_path.exists());

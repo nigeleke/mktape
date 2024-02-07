@@ -1,179 +1,171 @@
-use crate::result::{Error, Result};
-
+use clap::{Args as ClapArgs, Parser, Subcommand, ValueEnum};
+#[cfg(test)]
+use clap::error::Error as ClapError;
 use regex::Regex;
 
-use std::iter::Iterator;
+use std::num::ParseIntError;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 type BlockSize = usize;
 
-#[derive(Debug, PartialEq)]
-pub(crate) struct InputFileSpec {
-    path: PathBuf,
-    block_size: BlockSize,
+#[derive(Debug, Parser, PartialEq)]
+pub(crate) struct Args {
+    /// The tape file to be used. [-f <FORMAT>] <FILE>, where <FORMAT> is `tap` or `backup`.
+    #[command(flatten)]
+    pub tape: TapeFile,
+
+    #[command(subcommand)]
+    pub command: Command,
+
 }
 
-impl InputFileSpec {
-    pub(crate) fn path(&self) -> &PathBuf { &self.path }
-    pub(crate) fn block_size(&self) -> BlockSize { self.block_size }
-}
-
-#[derive(Debug, PartialEq)]
-pub(crate) struct ValidatedArgs {
-    tap_path: PathBuf,
-    input_specs: Vec<InputFileSpec>,
-}
-
-fn string_to_pathbuf(s: &str) -> Result<PathBuf> {
-    Ok(PathBuf::new().join(s))
-}
-
-const MKTAPE_BLOCK_LENGTH_ENVVAR: &str = "MKTAPE_BLOCK_LENGTH";
-const MKTAPE_BLOCK_LENGTH_DEFAULT: BlockSize = 1024;
-
-fn string_to_input_spec(s: &str) -> Result<InputFileSpec> {
-    let default_block_len = std::env::var(MKTAPE_BLOCK_LENGTH_ENVVAR)
-        .map_or(Ok(MKTAPE_BLOCK_LENGTH_DEFAULT), |v| v.parse::<BlockSize>())?;
-
-    fn reversed(input: &str) -> String {
-        let reversed_chars: Vec<char> = input.chars().rev().collect();
-        let reversed_string: String = reversed_chars.into_iter().collect();
-        reversed_string
+impl Args {
+    pub(crate) fn from(args: Vec<String>) -> Self {
+        Args::parse_from(args)
     }
 
-    fn reversed_as_block_size(input: &str) -> Result<BlockSize> {
-        let input = reversed(input);
-        let block_size = input.parse::<BlockSize>()?;
-        Ok(block_size)
+    #[cfg(test)]
+    pub(crate) fn try_from(args: &str) -> Result<Self, ClapError> {
+        let args = Vec::from_iter(args.split(' ').map(String::from));
+        Args::try_parse_from(&args)
     }
-
-    let s = reversed(s);
-    let regex = Regex::new("^(([^:]+):)?(.+)$").unwrap();
-    let captures = regex.captures(&s).ok_or(Error::InvalidInputSpec)?;
-
-    let path = captures.get(3).map(|m| reversed(m.as_str())).unwrap();
-    let path = string_to_pathbuf(&path)?;
-
-    let block_size = match captures.get(2).map(|m| reversed_as_block_size(m.as_str())) {
-        Some(result) => { result? },
-        None => { default_block_len },
-    };
-
-    Ok(InputFileSpec { path, block_size, })
 }
 
-impl ValidatedArgs {
-    pub(crate) fn from(args: &[String]) -> Result<ValidatedArgs> {
-        if args.len() <= 1 { return Err(Error::InvalidArgsCount) };
-        let tap_path = string_to_pathbuf(&args[0])?;
-        let Some(extension) = tap_path.extension() else {
-            return Err(Error::InvalidTapeFilename)            
-        };
-        if !extension.eq("tap") { return Err(Error::InvalidTapeFilename) }
-        let input_specs = args[1..].iter()
-            .map(|s| string_to_input_spec(s))
-            .collect::<Result<Vec<InputFileSpec>>>()?;
-        Ok(ValidatedArgs { tap_path, input_specs })
-    }
+#[derive(ClapArgs, Clone, Debug, PartialEq)]
+/// The tape file to be used.
+pub(crate) struct TapeFile {
+    /// Tape file format
+    #[arg(short, long, value_enum, default_value_t = TapeFormat::Tap)]
+    pub format: TapeFormat,
+    
+    /// The `tap` or `backup` file to be processed
+    #[arg(value_name = "TAPE")]
+    pub path: PathBuf,
+}
 
-    pub(crate) fn tap_path(&self) -> &PathBuf { &self.tap_path }
+#[derive(Clone, Debug, PartialEq, ValueEnum)]
+pub(crate) enum TapeFormat {
+    Tap,
+    Backup,
+}
 
-    pub(crate) fn input_specs(&self) -> impl Iterator<Item = &InputFileSpec> {
-        self.input_specs.iter()
+#[derive(Clone, Debug, PartialEq, Subcommand)]
+pub(crate) enum Command {
+    /// Create a tape image from a set of input files.
+    Create { 
+        /// The input files to be added: <FILE>[:<BLOCKSIZE>]
+        inputs: Vec<InputFile>,
+    },
+    /// List the contents of an existing tape image.
+    List,
+    /// Extract the contents of an existing tape image.
+    Extract {
+        /// Target folder for the extracted files.
+        target: PathBuf,
+    },
+}
+
+#[derive(ClapArgs, Clone, Debug, PartialEq)]
+pub(crate) struct InputFile {
+    pub path: PathBuf,
+    pub block_size: BlockSize,
+}
+
+const MKTAPE_BLOCK_SIZE_ENVVAR: &str = "MKTAPE_BLOCK_SIZE";
+const MKTAPE_BLOCK_SIZE_DEFAULT: BlockSize = 1024;
+
+impl FromStr for InputFile {
+    type Err = ParseIntError;
+    fn from_str(item: &str) -> std::result::Result<Self, Self::Err> {
+        let default_block_size = std::env::var(MKTAPE_BLOCK_SIZE_ENVVAR)
+            .map_or(Ok(MKTAPE_BLOCK_SIZE_DEFAULT),
+                    |v| v.parse::<BlockSize>())?;
+
+        fn reversed(input: &str) -> String {
+            let reversed_chars: Vec<char> = input.chars().rev().collect();
+            let reversed_string: String = reversed_chars.into_iter().collect();
+            reversed_string
+        }
+
+        let item = reversed(item);
+        let regex = Regex::new("^(([^:]+):)?(.+)$").unwrap();
+        let captures = regex.captures(&item).expect("mktape::args::Program Error in FromStr for InputFile");
+
+        let path = captures.get(3).map(|m| reversed(m.as_str())).unwrap().into();
+        let block_size = captures.get(2).map(|m| reversed(m.as_str()).parse()).transpose()?;
+        let block_size = block_size.unwrap_or(default_block_size);
+
+        Ok(InputFile { path, block_size, })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::error::ErrorKind;
 
     #[test]
     fn error_with_zero_args() {
-        let args = Vec::new();
-        assert_eq!(ValidatedArgs::from(&args), Err(Error::InvalidArgsCount))
+        let args = "mktape";
+        let result = Args::try_from(&args).map_err(|e| e.kind());
+        assert_eq!(result, Err(ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand))
     }
 
     #[test]
-    fn error_with_one_arg() {
-        let args = "outfile.tap";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        assert_eq!(ValidatedArgs::from(&args), Err(Error::InvalidArgsCount))
-    }
-
-    #[test]
-    fn error_when_tap_file_not_explicit() {
-        let args = "outfile.err infile1.txt";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        assert_eq!(ValidatedArgs::from(&args), Err(Error::InvalidTapeFilename))
-    }
-
-    #[test]
-    fn default_block_size_in_spec() {
-        let args = "outfile.tap infile1.txt";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        let expected = ValidatedArgs {
-            tap_path: PathBuf::new().join("outfile.tap"),
-            input_specs: vec![
-                InputFileSpec {
-                    path: PathBuf::new().join("infile1.txt"),
-                    block_size: 1024
-                }
-            ],
+    fn use_default_block_size() {
+        let args = "mktape outfile.tap create infile1.txt";
+        let result = Args::try_from(&args).expect("Expected successful parse");
+        assert_eq!(result.tape.path, PathBuf::new().join("outfile.tap"));
+        let inputs = match result.command {
+            Command::Create { inputs } => inputs,
+            other => panic!("use_default_block_size::Unexpected command {:?}", other),
         };
-        assert_eq!(ValidatedArgs::from(&args), Ok(expected))
+        assert_eq!(inputs[0].path, PathBuf::new().join("infile1.txt"));
+        assert_eq!(inputs[0].block_size, 1024);
     }
 
     #[test]
-    fn environment_variable_block_size_in_spec() {
-        std::env::set_var(MKTAPE_BLOCK_LENGTH_ENVVAR, "2048");
-        let args = "outfile.tap infile1.txt";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        let expected = ValidatedArgs {
-            tap_path: PathBuf::new().join("outfile.tap"),
-            input_specs: vec![
-                InputFileSpec {
-                    path: PathBuf::new().join("infile1.txt"),
-                    block_size: 2048
-                }
-            ],
+    fn use_environment_variable_block_size() {
+        std::env::set_var(MKTAPE_BLOCK_SIZE_ENVVAR, "2048");
+        let args = "mktape outfile.tap create infile1.txt";
+        let result = Args::try_from(&args).expect("Expected successful parse");
+        assert_eq!(result.tape.path, PathBuf::new().join("outfile.tap"));
+        let inputs = match result.command {
+            Command::Create { inputs } => inputs,
+            other => panic!("use_default_block_size::Unexpected command {:?}", other),
         };
-        let actual = ValidatedArgs::from(&args);
-        std::env::remove_var(MKTAPE_BLOCK_LENGTH_ENVVAR);
-        assert_eq!(actual, Ok(expected))
+        assert_eq!(inputs[0].path, PathBuf::new().join("infile1.txt"));
+        assert_eq!(inputs[0].block_size, 2048);
+        std::env::remove_var(MKTAPE_BLOCK_SIZE_ENVVAR);
     }
 
     #[test]
-    fn invalid_environment_variable_block_size_in_spec() {
-        std::env::set_var(MKTAPE_BLOCK_LENGTH_ENVVAR, "abcd");
-        let args = "outfile.tap infile1.txt";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        let actual = ValidatedArgs::from(&args);
-        std::env::remove_var(MKTAPE_BLOCK_LENGTH_ENVVAR);
-        assert_eq!(actual, Err(Error::InvalidInputSpec))
+    fn fail_on_invalid_environment_variable_block_size() {
+        std::env::set_var(MKTAPE_BLOCK_SIZE_ENVVAR, "abcd");
+        let args = "mktape outfile.tap create infile1.txt";
+        let result = Args::try_from(&args).map_err(|e| e.kind());
+        assert_eq!(result, Err(ErrorKind::ValueValidation));
+        std::env::remove_var(MKTAPE_BLOCK_SIZE_ENVVAR);
     }
 
     #[test]
-    fn extracted_block_size_in_spec() {
-        let args = "outfile.tap infile1.txt:4096";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        let expected = ValidatedArgs {
-            tap_path: PathBuf::new().join("outfile.tap"),
-            input_specs: vec![
-                InputFileSpec {
-                    path: PathBuf::new().join("infile1.txt"),
-                    block_size: 4096
-                }
-            ],
+    fn use_input_block_size() {
+        let args = "mktape outfile.tap create infile1.txt:4096";
+        let result = Args::try_from(&args).expect("Expected successful parse");
+        assert_eq!(result.tape.path, PathBuf::new().join("outfile.tap"));
+        let inputs = match result.command {
+            Command::Create { inputs } => inputs,
+            other => panic!("use_default_block_size::Unexpected command {:?}", other),
         };
-        assert_eq!(ValidatedArgs::from(&args), Ok(expected))
+        assert_eq!(inputs[0].path, PathBuf::new().join("infile1.txt"));
+        assert_eq!(inputs[0].block_size, 4096);
     }
 
     #[test]
-    fn invalid_extracted_block_size_in_spec() {
-        let args = "outfile.tap infile1.txt:abcd";
-        let args = Vec::from_iter(args.split(' ').map(String::from));
-        assert_eq!(ValidatedArgs::from(&args), Err(Error::InvalidInputSpec))
+    fn fail_on_invalid_input_block_size() {
+        let args = "mktape outfile.tap create infile1.txt:abcd";
+        let result = Args::try_from(&args).map_err(|e| e.kind());
+        assert_eq!(result, Err(ErrorKind::ValueValidation));
     }
-
-
 }

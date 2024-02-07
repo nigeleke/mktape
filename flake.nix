@@ -16,6 +16,7 @@
           pkgs.rustup
           pkgs.cargo-tarpaulin
           pkgs.openssl
+          pkgs.binutils
         ];
       };
     };

@@ -1,35 +1,17 @@
-use mktape::mktape::*;
-use mktape::result::*;
+//! `mktape` stems from the need to create a PDP-10 `tap` file to load source of another [project](https://nigeleke.github.io/monop) of mine, onto an emulated PDP-10.
+//! As part of the research into making this work I was pointed to [this paper](https://opensimh.org/research-unix-7-pdp11-45-v2.0.pdf) and, in particular, the [perl script](https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/mktape.pl) referenced in Appendix A.
+//! The [perl script](https://www.tuhs.org/Archive/Distributions/Research/Keith_Bostic_v7/mktape.pl) creates a pre-named `tap` file (`v7.tap`) from files `f0`..`f6`. More over, the input files have pre-defined block sizes for each of them.
+//!
+//! This project generalises the script so that the user can:
+//! 
+//!   * specify the output file (required)
+//!   * specify the input file(s), minimally one file
+//!   * specify the input file's block-sizes (defaults to 1024 to align with the `tapewrite` default from the [tapeutils](https://github.com/brouhaha/tapeutils) repository).
+//!
+use mktape::*;
+use mktape::result::Error;
 
-const USAGE: &str = r#"
-
-Usage: mktape <tapefilename.tap> <inputfilename:block_size>...
-
-Note:
-  1. <tapefilename.tap> must end with tap extension
-  2. If <tapefilename.tap> already exists, then its contents will be overwritten.
-  3. <inputfilename> optionally followed by ':<block_size>'
-  4. Default block_size is defined by MKTAPE_BLOCK_SIZE environment variable,
-     otherwise defaulted to 1024, if MKTAPE_BLOCK_SIZE is not defined.
-
-"#;
-
-/// Usage: mktape <tapefilename.tap> <inputfilename:block_size>...
-///
-/// Note:
-///   1. <tapefilename.tap> must end with tap extension
-///   2. If <tapefilename.tap> already exists, then its contents will be overwritten.
-///   3. <inputfilename> optionally followed by ':<block_size>'
-///   4. Default block_size is defined by MKTAPE_BLOCK_SIZE environment variable,
-///      otherwise defaulted to 1024, if MKTAPE_BLOCK_SIZE is not defined.
-///
-fn main() -> Result<()> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match mktape(&args) {
-        Ok(_) => { Ok(()) },
-        Err(e) => {
-            println!("{}", USAGE);
-            Err(e)
-        }
-    }
+fn main() -> Result<(), Error> {
+    let args = std::env::args().collect::<Vec<String>>();
+    mktape(args)
 }
